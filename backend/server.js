@@ -1,6 +1,7 @@
 const express = require('express');
 const path = require('path');
 const cors = require('cors');
+const jwt = require('jsonwebtoken');
 const db = require('./database');
 
 const app = express();
@@ -12,7 +13,7 @@ const USERS = [
     { username: 'teacher', password: 'teacher123', role: 'teacher' }
 ];
 
-const tokens = new Map(); // simple in-memory token store
+const JWT_SECRET = process.env.JWT_SECRET || 'studenthub-secret-key-2026';
 
 // Middleware
 app.use(cors());
@@ -42,8 +43,11 @@ app.post('/api/login', (req, res) => {
     const { username, password } = req.body;
     const user = USERS.find(u => u.username === username && u.password === password);
     if (user) {
-        const token = Buffer.from(`${username}:${Date.now()}:${Math.random()}`).toString('base64');
-        tokens.set(token, { username: user.username, role: user.role, created: Date.now() });
+        const token = jwt.sign(
+            { username: user.username, role: user.role },
+            JWT_SECRET,
+            { expiresIn: '24h' }
+        );
         res.json({ success: true, token, role: user.role });
     } else {
         res.status(401).json({ success: false, error: 'Invalid username or password' });
@@ -52,18 +56,17 @@ app.post('/api/login', (req, res) => {
 
 // POST - Logout
 app.post('/api/logout', (req, res) => {
-    const token = req.headers.authorization?.replace('Bearer ', '');
-    if (token) tokens.delete(token);
+    // JWT is stateless; client just discards the token
     res.json({ success: true });
 });
 
 // GET - Verify token
 app.get('/api/verify', (req, res) => {
     const token = req.headers.authorization?.replace('Bearer ', '');
-    if (token && tokens.has(token)) {
-        const session = tokens.get(token);
-        res.json({ success: true, username: session.username, role: session.role });
-    } else {
+    try {
+        const decoded = jwt.verify(token, JWT_SECRET);
+        res.json({ success: true, username: decoded.username, role: decoded.role });
+    } catch (err) {
         res.status(401).json({ success: false, error: 'Invalid or expired token' });
     }
 });
