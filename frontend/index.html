@@ -4,96 +4,140 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Gestion des Étudiants</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
+    <div class="background-animation"></div>
     <div class="container">
-        <header>
-            <h1>📚 Gestion des Étudiants</h1>
-            <p class="subtitle">Application de gestion complète avec Node.js et SQLite</p>
+        <header class="header-modern">
+            <div class="header-content">
+                <div class="header-title-group">
+                    <h1 class="header-title"><i class="fas fa-graduation-cap"></i> Student Hub</h1>
+                    <p class="subtitle">Manage your students efficiently with our modern platform</p>
+                </div>
+            </div>
         </header>
 
         <main>
-            <!-- Section du formulaire -->
-            <section class="form-section">
-                <h2>Ajouter un nouvel étudiant</h2>
-                <form id="studentForm" class="form">
-                    <div class="form-group">
-                        <label for="nom">Nom *</label>
-                        <input type="text" id="nom" name="nom" required placeholder="John Doe">
+            <div class="content-wrapper">
+                <!-- Section du formulaire -->
+                <section class="form-section fade-in">
+                    <div class="form-header">
+                        <h2><i class="fas fa-user-plus"></i> Add New Student</h2>
+                        <p>Fill in the details below to register a new student</p>
                     </div>
+                    <form id="studentForm" class="form-modern">
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="nom"><i class="fas fa-user"></i> Full Name *</label>
+                                <input type="text" id="nom" name="nom" required placeholder="John Doe">
+                                <span class="form-underline"></span>
+                            </div>
 
-                    <div class="form-group">
-                        <label for="email">Email *</label>
-                        <input type="email" id="email" name="email" required placeholder="john@example.com">
+                            <div class="form-group">
+                                <label for="email"><i class="fas fa-envelope"></i> Email *</label>
+                                <input type="email" id="email" name="email" required placeholder="john@example.com">
+                                <span class="form-underline"></span>
+                            </div>
+                        </div>
+
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="classe"><i class="fas fa-book"></i> Class *</label>
+                                <select id="classe" name="classe" required>
+                                    <option value="">Select a class</option>
+                                    <option value="1A">First Year</option>
+                                    <option value="2A">Second Year</option>
+                                    <option value="3A">Third Year</option>
+                                    <option value="Master1">Master 1</option>
+                                    <option value="Master2">Master 2</option>
+                                </select>
+                                <span class="form-underline"></span>
+                            </div>
+
+                            <div class="form-group">
+                                <label for="age"><i class="fas fa-birthday-cake"></i> Age</label>
+                                <input type="number" id="age" name="age" min="15" max="80" placeholder="20">
+                                <span class="form-underline"></span>
+                            </div>
+                        </div>
+
+                        <button type="submit" class="btn btn-primary btn-large">
+                            <i class="fas fa-plus"></i> Add Student
+                        </button>
+                    </form>
+                </section>
+
+                <!-- Section de la liste des étudiants -->
+                <section class="students-section fade-in">
+                    <div class="section-header">
+                        <h2><i class="fas fa-list"></i> Students List</h2>
+                        <div class="stats-container">
+                            <span class="stat-badge" id="totalStudents">0 students</span>
+                        </div>
                     </div>
-
-                    <div class="form-group">
-                        <label for="classe">Classe *</label>
-                        <select id="classe" name="classe" required>
-                            <option value="">Sélectionner une classe</option>
-                            <option value="1A">Première Année</option>
-                            <option value="2A">Deuxième Année</option>
-                            <option value="3A">Troisième Année</option>
-                            <option value="Master1">Master 1</option>
-                            <option value="Master2">Master 2</option>
-                        </select>
+                    <div id="loading" class="loading-spinner">
+                        <div class="spinner"></div>
+                        <p>Loading students...</p>
                     </div>
-
-                    <div class="form-group">
-                        <label for="age">Âge</label>
-                        <input type="number" id="age" name="age" min="15" max="80" placeholder="20">
-                    </div>
-
-                    <button type="submit" class="btn btn-primary">➕ Ajouter l'étudiant</button>
-                </form>
-            </section>
-
-            <!-- Section de la liste des étudiants -->
-            <section class="students-section">
-                <h2>Liste des étudiants</h2>
-                <div id="loading" class="loading">Chargement...</div>
-                <div id="studentList" class="student-list"></div>
-            </section>
+                    <div id="studentList" class="student-list-grid"></div>
+                </section>
+            </div>
         </main>
 
         <!-- Modal pour éditer un étudiant -->
         <div id="editModal" class="modal" style="display: none;">
-            <div class="modal-content">
-                <span class="close">&times;</span>
-                <h2>Modifier l'étudiant</h2>
-                <form id="editForm" class="form">
+            <div class="modal-overlay"></div>
+            <div class="modal-content modal-animate">
+                <button class="modal-close" onclick="closeModal()">
+                    <i class="fas fa-times"></i>
+                </button>
+                <h2><i class="fas fa-edit"></i> Edit Student</h2>
+                <form id="editForm" class="form-modern">
                     <input type="hidden" id="editId">
                     
-                    <div class="form-group">
-                        <label for="editNom">Nom *</label>
-                        <input type="text" id="editNom" required>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="editNom"><i class="fas fa-user"></i> Full Name *</label>
+                            <input type="text" id="editNom" required>
+                            <span class="form-underline"></span>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="editEmail"><i class="fas fa-envelope"></i> Email *</label>
+                            <input type="email" id="editEmail" required>
+                            <span class="form-underline"></span>
+                        </div>
                     </div>
 
-                    <div class="form-group">
-                        <label for="editEmail">Email *</label>
-                        <input type="email" id="editEmail" required>
-                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="editClasse"><i class="fas fa-book"></i> Class *</label>
+                            <select id="editClasse" required>
+                                <option value="1A">First Year</option>
+                                <option value="2A">Second Year</option>
+                                <option value="3A">Third Year</option>
+                                <option value="Master1">Master 1</option>
+                                <option value="Master2">Master 2</option>
+                            </select>
+                            <span class="form-underline"></span>
+                        </div>
 
-                    <div class="form-group">
-                        <label for="editClasse">Classe *</label>
-                        <select id="editClasse" required>
-                            <option value="1A">Première Année</option>
-                            <option value="2A">Deuxième Année</option>
-                            <option value="3A">Troisième Année</option>
-                            <option value="Master1">Master 1</option>
-                            <option value="Master2">Master 2</option>
-                        </select>
-                    </div>
-
-                    <div class="form-group">
-                        <label for="editAge">Âge</label>
-                        <input type="number" id="editAge" min="15" max="80">
+                        <div class="form-group">
+                            <label for="editAge"><i class="fas fa-birthday-cake"></i> Age</label>
+                            <input type="number" id="editAge" min="15" max="80">
+                            <span class="form-underline"></span>
+                        </div>
                     </div>
 
                     <div class="modal-buttons">
-                        <button type="submit" class="btn btn-primary">💾 Enregistrer</button>
-                        <button type="button" class="btn btn-secondary" onclick="closeModal()">Annuler</button>
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-save"></i> Save Changes
+                        </button>
+                        <button type="button" class="btn btn-secondary" onclick="closeModal()">
+                            <i class="fas fa-times"></i> Cancel
+                        </button>
                     </div>
                 </form>
             </div>

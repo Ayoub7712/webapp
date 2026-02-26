@@ -4,12 +4,11 @@ const studentList = document.getElementById('studentList');
 const loading = document.getElementById('loading');
 const editModal = document.getElementById('editModal');
 const editForm = document.getElementById('editForm');
-const closeBtn = document.querySelector('.close');
+const totalStudentsEl = document.getElementById('totalStudents');
 
 // Événements
 studentForm.addEventListener('submit', handleAddStudent);
 editForm.addEventListener('submit', handleUpdateStudent);
-closeBtn.addEventListener('click', closeModal);
 window.addEventListener('click', (event) => {
     if (event.target === editModal) {
         closeModal();
@@ -22,7 +21,7 @@ document.addEventListener('DOMContentLoaded', loadStudents);
 // =============== FONCTION POUR CHARGER LES ÉTUDIANTS ===============
 async function loadStudents() {
     try {
-        loading.style.display = 'block';
+        loading.style.display = 'flex';
         studentList.innerHTML = '';
 
         const response = await fetch('/api/students');
@@ -33,19 +32,25 @@ async function loadStudents() {
         if (students.length === 0) {
             studentList.innerHTML = `
                 <div class="empty-state">
-                    <p>📭 Aucun étudiant enregistré</p>
-                    <p>Complétez le formulaire ci-dessus pour ajouter un nouveau étudiant</p>
+                    <p>📭</p>
+                    <p>No students registered yet</p>
+                    <p>Fill the form above to add a new student</p>
                 </div>
             `;
+            totalStudentsEl.textContent = '0 students';
             return;
         }
 
-        students.forEach(student => {
-            studentList.appendChild(createStudentCard(student));
+        totalStudentsEl.textContent = `${students.length} student${students.length !== 1 ? 's' : ''}`;
+        
+        students.forEach((student, index) => {
+            setTimeout(() => {
+                studentList.appendChild(createStudentCard(student));
+            }, index * 50);
         });
     } catch (error) {
-        console.error('Erreur lors du chargement des étudiants:', error);
-        loading.innerHTML = '<p style="color: red;">❌ Erreur de chargement</p>';
+        console.error('Error loading students:', error);
+        loading.innerHTML = '<p style="color: red;">❌ Error loading students</p>';
     }
 }
 
@@ -53,16 +58,36 @@ async function loadStudents() {
 function createStudentCard(student) {
     const card = document.createElement('div');
     card.className = 'student-card';
+    
+    const initials = student.nom.split(' ').map(n => n[0]).join('').toUpperCase();
+    
     card.innerHTML = `
+        <div class="student-avatar">${initials}</div>
         <div class="student-info">
-            <h3>👤 ${student.nom}</h3>
-            <p><strong>Email:</strong> <a href="mailto:${student.email}" class="email">${student.email}</a></p>
-            <p><strong>Classe:</strong> ${student.classe}</p>
-            ${student.age ? `<p><strong>Âge:</strong> ${student.age} ans</p>` : ''}
+            <div class="student-name">${student.nom}</div>
+            <div class="student-detail">
+                <i class="fas fa-envelope"></i>
+                <a href="mailto:${student.email}" style="color: inherit; text-decoration: none;">${student.email}</a>
+            </div>
+            <div class="student-detail">
+                <i class="fas fa-book"></i>
+                ${student.classe}
+            </div>
+            ${student.age ? `
+            <div class="student-detail">
+                <i class="fas fa-birthday-cake"></i>
+                ${student.age} years old
+            </div>
+            ` : ''}
+            <span class="student-badge">ID: ${student.id}</span>
         </div>
         <div class="student-actions">
-            <button class="btn btn-sm btn-info" onclick="openEditModal(${student.id})">✏️ Modifier</button>
-            <button class="btn btn-sm btn-danger" onclick="deleteStudent(${student.id})">🗑️ Supprimer</button>
+            <button class="btn btn-edit btn-sm" onclick="openEditModal(${student.id})">
+                <i class="fas fa-edit"></i> Edit
+            </button>
+            <button class="btn btn-delete btn-sm" onclick="deleteStudent(${student.id})">
+                <i class="fas fa-trash"></i> Delete
+            </button>
         </div>
     `;
     return card;
@@ -89,16 +114,17 @@ async function handleAddStudent(e) {
         });
 
         if (response.ok) {
-            alert('✅ Étudiant ajouté avec succès!');
+            // Show success notification
+            showNotification('Student added successfully!', 'success');
             studentForm.reset();
             loadStudents();
         } else {
             const error = await response.json();
-            alert('❌ Erreur: ' + error.error);
+            showNotification('Error: ' + error.error, 'error');
         }
     } catch (error) {
-        console.error('Erreur lors de l\'ajout:', error);
-        alert('❌ Erreur lors de l\'ajout de l\'étudiant');
+        console.error('Error adding student:', error);
+        showNotification('Error adding student', 'error');
     }
 }
 
@@ -114,10 +140,10 @@ async function openEditModal(id) {
         document.getElementById('editClasse').value = student.classe;
         document.getElementById('editAge').value = student.age || '';
 
-        editModal.style.display = 'block';
+        editModal.style.display = 'flex';
     } catch (error) {
-        console.error('Erreur lors de la récupération de l\'étudiant:', error);
-        alert('❌ Erreur lors de la récupération de l\'étudiant');
+        console.error('Error loading student:', error);
+        showNotification('Error loading student', 'error');
     }
 }
 
@@ -148,22 +174,22 @@ async function handleUpdateStudent(e) {
         });
 
         if (response.ok) {
-            alert('✅ Étudiant mis à jour avec succès!');
+            showNotification('Student updated successfully!', 'success');
             closeModal();
             loadStudents();
         } else {
             const error = await response.json();
-            alert('❌ Erreur: ' + error.error);
+            showNotification('Error: ' + error.error, 'error');
         }
     } catch (error) {
-        console.error('Erreur lors de la mise à jour:', error);
-        alert('❌ Erreur lors de la mise à jour de l\'étudiant');
+        console.error('Error updating student:', error);
+        showNotification('Error updating student', 'error');
     }
 }
 
 // =============== SUPPRIMER UN ÉTUDIANT ===============
 async function deleteStudent(id) {
-    if (!confirm('Êtes-vous sûr de vouloir supprimer cet étudiant?')) {
+    if (!confirm('Are you sure you want to delete this student?')) {
         return;
     }
 
@@ -173,14 +199,66 @@ async function deleteStudent(id) {
         });
 
         if (response.ok) {
-            alert('✅ Étudiant supprimé avec succès!');
+            showNotification('Student deleted successfully!', 'success');
             loadStudents();
         } else {
             const error = await response.json();
-            alert('❌ Erreur: ' + error.error);
+            showNotification('Error: ' + error.error, 'error');
         }
     } catch (error) {
-        console.error('Erreur lors de la suppression:', error);
-        alert('❌ Erreur lors de la suppression de l\'étudiant');
+        console.error('Error deleting student:', error);
+        showNotification('Error deleting student', 'error');
     }
 }
+
+// =============== NOTIFICATION HELPER ===============
+function showNotification(message, type) {
+    // Create notification element
+    const notif = document.createElement('div');
+    notif.style.cssText = `
+        position: fixed;
+        top: 20px;
+        right: 20px;
+        padding: 16px 24px;
+        background: ${type === 'success' ? '#10b981' : '#ef4444'};
+        color: white;
+        border-radius: 8px;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+        animation: slideInRight 0.3s ease-out;
+        z-index: 2000;
+        font-weight: 600;
+    `;
+    notif.textContent = message;
+    document.body.appendChild(notif);
+
+    setTimeout(() => {
+        notif.style.animation = 'slideOutRight 0.3s ease-out';
+        setTimeout(() => notif.remove(), 300);
+    }, 3000);
+}
+
+// Add animation styles
+const style = document.createElement('style');
+style.textContent = `
+    @keyframes slideInRight {
+        from {
+            transform: translateX(100%);
+            opacity: 0;
+        }
+        to {
+            transform: translateX(0);
+            opacity: 1;
+        }
+    }
+    @keyframes slideOutRight {
+        from {
+            transform: translateX(0);
+            opacity: 1;
+        }
+        to {
+            transform: translateX(100%);
+            opacity: 0;
+        }
+    }
+`;
+document.head.appendChild(style);
