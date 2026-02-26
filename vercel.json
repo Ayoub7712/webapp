@@ -16,8 +16,12 @@
       "dest": "backend/server.js"
     },
     {
+      "src": "/(.+\\.(?:js|css|html|ico|png|jpg|jpeg|svg|gif|woff2?|ttf|eot|json))",
+      "dest": "frontend/$1"
+    },
+    {
       "src": "/(.*)",
-      "dest": "frontend/index.html"
+      "dest": "frontend/login.html"
     }
   ],
   "env": {

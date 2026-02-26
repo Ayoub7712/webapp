@@ -131,7 +131,10 @@ app.delete('/api/students/:id', (req, res) => {
     });
 });
 
-// Démarrer le serveur
+// Export for Vercel serverless
+module.exports = app;
+
+// Start server (local dev only)
 app.listen(PORT, () => {
     console.log(`✅ Server started on http://localhost:${PORT}`);
 });
