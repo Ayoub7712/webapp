@@ -2,7 +2,14 @@ const express = require('express');
 const path = require('path');
 const cors = require('cors');
 const jwt = require('jsonwebtoken');
-const db = require('./database');
+
+// Database — may fail on serverless (sqlite3 native module)
+let db = null;
+try {
+    db = require('./database');
+} catch (e) {
+    console.warn('⚠️  SQLite not available (serverless env). Student CRUD disabled.');
+}
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -33,8 +40,8 @@ app.get('/login.html', (req, res) => {
 // Static files
 app.use(express.static(path.join(__dirname, '../frontend')));
 
-// Initialize database
-db.initializeDatabase();
+// Initialize database (if available)
+if (db) db.initializeDatabase();
 
 // =============== AUTH ROUTES ===============
 
@@ -73,8 +80,14 @@ app.get('/api/verify', (req, res) => {
 
 // =============== STUDENT ROUTES API ===============
 
+// Middleware: check DB available
+function requireDB(req, res, next) {
+    if (!db) return res.status(503).json({ error: 'Database not available in serverless mode. Use local server.' });
+    next();
+}
+
 // GET - Récupérer tous les étudiants
-app.get('/api/students', (req, res) => {
+app.get('/api/students', requireDB, (req, res) => {
     db.getAllStudents((err, students) => {
         if (err) {
             return res.status(500).json({ error: 'Erreur lors de la récupération des étudiants' });
@@ -84,7 +97,7 @@ app.get('/api/students', (req, res) => {
 });
 
 // GET - Récupérer un étudiant par ID
-app.get('/api/students/:id', (req, res) => {
+app.get('/api/students/:id', requireDB, (req, res) => {
     db.getStudentById(req.params.id, (err, student) => {
         if (err) {
             return res.status(500).json({ error: 'Erreur lors de la récupération de l\'étudiant' });
@@ -97,7 +110,7 @@ app.get('/api/students/:id', (req, res) => {
 });
 
 // POST - Créer un nouvel étudiant
-app.post('/api/students', (req, res) => {
+app.post('/api/students', requireDB, (req, res) => {
     const { nom, email, classe, age } = req.body;
     
     if (!nom || !email || !classe) {
@@ -113,7 +126,7 @@ app.post('/api/students', (req, res) => {
 });
 
 // PUT - Mettre à jour un étudiant
-app.put('/api/students/:id', (req, res) => {
+app.put('/api/students/:id', requireDB, (req, res) => {
     const { nom, email, classe, age } = req.body;
     
     db.updateStudent(req.params.id, { nom, email, classe, age }, (err) => {
@@ -125,7 +138,7 @@ app.put('/api/students/:id', (req, res) => {
 });
 
 // DELETE - Supprimer un étudiant
-app.delete('/api/students/:id', (req, res) => {
+app.delete('/api/students/:id', requireDB, (req, res) => {
     db.deleteStudent(req.params.id, (err) => {
         if (err) {
             return res.status(500).json({ error: 'Erreur lors de la suppression de l\'étudiant' });
