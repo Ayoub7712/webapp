@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gestion des Étudiants</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>📚 Gestion des Étudiants</h1>
+            <p class="subtitle">Application de gestion complète avec Node.js et SQLite</p>
+        </header>
+
+        <main>
+            <!-- Section du formulaire -->
+            <section class="form-section">
+                <h2>Ajouter un nouvel étudiant</h2>
+                <form id="studentForm" class="form">
+                    <div class="form-group">
+                        <label for="nom">Nom *</label>
+                        <input type="text" id="nom" name="nom" required placeholder="John Doe">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="email">Email *</label>
+                        <input type="email" id="email" name="email" required placeholder="john@example.com">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="classe">Classe *</label>
+                        <select id="classe" name="classe" required>
+                            <option value="">Sélectionner une classe</option>
+                            <option value="1A">Première Année</option>
+                            <option value="2A">Deuxième Année</option>
+                            <option value="3A">Troisième Année</option>
+                            <option value="Master1">Master 1</option>
+                            <option value="Master2">Master 2</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="age">Âge</label>
+                        <input type="number" id="age" name="age" min="15" max="80" placeholder="20">
+                    </div>
+
+                    <button type="submit" class="btn btn-primary">➕ Ajouter l'étudiant</button>
+                </form>
+            </section>
+
+            <!-- Section de la liste des étudiants -->
+            <section class="students-section">
+                <h2>Liste des étudiants</h2>
+                <div id="loading" class="loading">Chargement...</div>
+                <div id="studentList" class="student-list"></div>
+            </section>
+        </main>
+
+        <!-- Modal pour éditer un étudiant -->
+        <div id="editModal" class="modal" style="display: none;">
+            <div class="modal-content">
+                <span class="close">&times;</span>
+                <h2>Modifier l'étudiant</h2>
+                <form id="editForm" class="form">
+                    <input type="hidden" id="editId">
+                    
+                    <div class="form-group">
+                        <label for="editNom">Nom *</label>
+                        <input type="text" id="editNom" required>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="editEmail">Email *</label>
+                        <input type="email" id="editEmail" required>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="editClasse">Classe *</label>
+                        <select id="editClasse" required>
+                            <option value="1A">Première Année</option>
+                            <option value="2A">Deuxième Année</option>
+                            <option value="3A">Troisième Année</option>
+                            <option value="Master1">Master 1</option>
+                            <option value="Master2">Master 2</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="editAge">Âge</label>
+                        <input type="number" id="editAge" min="15" max="80">
+                    </div>
+
+                    <div class="modal-buttons">
+                        <button type="submit" class="btn btn-primary">💾 Enregistrer</button>
+                        <button type="button" class="btn btn-secondary" onclick="closeModal()">Annuler</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>
