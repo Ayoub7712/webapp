@@ -1,4 +1,138 @@
-// Variables globales
+// ========== AUTH CHECK ==========
+(function checkAuth() {
+    const token = sessionStorage.getItem('auth_token');
+    if (!token) {
+        window.location.href = '/login.html';
+        return;
+    }
+    // Verify token with server
+    fetch('/api/verify', {
+        headers: { 'Authorization': 'Bearer ' + token }
+    }).then(res => {
+        if (!res.ok) {
+            sessionStorage.clear();
+            window.location.href = '/login.html';
+        } else {
+            return res.json();
+        }
+    }).then(data => {
+        if (data && data.username) {
+            const navUser = document.getElementById('navUsername');
+            if (navUser) navUser.textContent = data.username;
+        }
+    }).catch(() => {
+        sessionStorage.clear();
+        window.location.href = '/login.html';
+    });
+})();
+
+function logout() {
+    const token = sessionStorage.getItem('auth_token');
+    fetch('/api/logout', {
+        method: 'POST',
+        headers: { 'Authorization': 'Bearer ' + token }
+    }).finally(() => {
+        sessionStorage.clear();
+        window.location.href = '/login.html';
+    });
+}
+
+// ========== PARTICLE BACKGROUND ==========
+const canvas = document.getElementById('particleCanvas');
+const ctx = canvas.getContext('2d');
+let particles = [];
+let mouse = { x: null, y: null };
+
+function resizeCanvas() {
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
+}
+resizeCanvas();
+window.addEventListener('resize', resizeCanvas);
+window.addEventListener('mousemove', (e) => {
+    mouse.x = e.x;
+    mouse.y = e.y;
+});
+
+class Particle {
+    constructor() { this.reset(); }
+    reset() {
+        this.x = Math.random() * canvas.width;
+        this.y = Math.random() * canvas.height;
+        this.vx = (Math.random() - 0.5) * 0.6;
+        this.vy = (Math.random() - 0.5) * 0.6;
+        this.radius = Math.random() * 2 + 0.5;
+        this.opacity = Math.random() * 0.5 + 0.1;
+        this.color = ['99, 102, 241', '0, 212, 255', '180, 77, 255', '255, 45, 124'][Math.floor(Math.random() * 4)];
+    }
+    update() {
+        this.x += this.vx;
+        this.y += this.vy;
+        // Mouse repulsion
+        if (mouse.x && mouse.y) {
+            const dx = this.x - mouse.x;
+            const dy = this.y - mouse.y;
+            const dist = Math.sqrt(dx * dx + dy * dy);
+            if (dist < 120) {
+                this.x += dx / dist * 1.5;
+                this.y += dy / dist * 1.5;
+            }
+        }
+        if (this.x < 0 || this.x > canvas.width) this.vx *= -1;
+        if (this.y < 0 || this.y > canvas.height) this.vy *= -1;
+    }
+    draw() {
+        ctx.beginPath();
+        ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
+        ctx.fillStyle = `rgba(${this.color}, ${this.opacity})`;
+        ctx.fill();
+    }
+}
+
+for (let i = 0; i < 100; i++) particles.push(new Particle());
+
+function drawLines() {
+    for (let i = 0; i < particles.length; i++) {
+        for (let j = i + 1; j < particles.length; j++) {
+            const dx = particles[i].x - particles[j].x;
+            const dy = particles[i].y - particles[j].y;
+            const dist = Math.sqrt(dx * dx + dy * dy);
+            if (dist < 130) {
+                ctx.beginPath();
+                ctx.moveTo(particles[i].x, particles[i].y);
+                ctx.lineTo(particles[j].x, particles[j].y);
+                ctx.strokeStyle = `rgba(99, 102, 241, ${0.12 * (1 - dist / 130)})`;
+                ctx.lineWidth = 0.5;
+                ctx.stroke();
+            }
+        }
+    }
+}
+
+function animateParticles() {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    particles.forEach(p => { p.update(); p.draw(); });
+    drawLines();
+    requestAnimationFrame(animateParticles);
+}
+animateParticles();
+
+// ========== INTERSECTION OBSERVER FOR ANIMATIONS ==========
+const observer = new IntersectionObserver((entries) => {
+    entries.forEach(entry => {
+        if (entry.isIntersecting) {
+            entry.target.style.animation = 'riseUp 0.8s ease forwards';
+            observer.unobserve(entry.target);
+        }
+    });
+}, { threshold: 0.1 });
+
+document.querySelectorAll('.glass-section').forEach(section => {
+    section.style.opacity = '0';
+    observer.observe(section);
+});
+
+// ========== DOM ELEMENTS ==========
 const studentForm = document.getElementById('studentForm');
 const studentList = document.getElementById('studentList');
 const loading = document.getElementById('loading');
@@ -6,19 +140,17 @@ const editModal = document.getElementById('editModal');
 const editForm = document.getElementById('editForm');
 const totalStudentsEl = document.getElementById('totalStudents');
 
-// Événements
+// Events
 studentForm.addEventListener('submit', handleAddStudent);
 editForm.addEventListener('submit', handleUpdateStudent);
 window.addEventListener('click', (event) => {
-    if (event.target === editModal) {
-        closeModal();
-    }
+    if (event.target === editModal) closeModal();
 });
 
-// Charger les étudiants au démarrage
+// Load students on startup
 document.addEventListener('DOMContentLoaded', loadStudents);
 
-// =============== FONCTION POUR CHARGER LES ÉTUDIANTS ===============
+// ========== LOAD STUDENTS ==========
 async function loadStudents() {
     try {
         loading.style.display = 'flex';
@@ -32,60 +164,59 @@ async function loadStudents() {
         if (students.length === 0) {
             studentList.innerHTML = `
                 <div class="empty-state">
-                    <p>📭</p>
-                    <p>No students registered yet</p>
-                    <p>Fill the form above to add a new student</p>
+                    <div class="empty-icon">📭</div>
+                    <h3>No students registered yet</h3>
+                    <p>Fill the form above to add your first student</p>
                 </div>
             `;
-            totalStudentsEl.textContent = '0 students';
+            totalStudentsEl.textContent = '0';
             return;
         }
 
-        totalStudentsEl.textContent = `${students.length} student${students.length !== 1 ? 's' : ''}`;
-        
+        totalStudentsEl.textContent = students.length;
+
         students.forEach((student, index) => {
             setTimeout(() => {
-                studentList.appendChild(createStudentCard(student));
-            }, index * 50);
+                const card = createStudentCard(student);
+                card.style.animationDelay = `${index * 0.08}s`;
+                studentList.appendChild(card);
+            }, index * 60);
         });
     } catch (error) {
         console.error('Error loading students:', error);
-        loading.innerHTML = '<p style="color: red;">❌ Error loading students</p>';
+        loading.innerHTML = '<p style="color: #ff5252;">Error loading students</p>';
     }
 }
 
-// =============== CRÉER UNE CARTE D'ÉTUDIANT ===============
+// ========== CREATE STUDENT CARD ==========
 function createStudentCard(student) {
     const card = document.createElement('div');
     card.className = 'student-card';
-    
-    const initials = student.nom.split(' ').map(n => n[0]).join('').toUpperCase();
-    
+
+    const initials = student.nom.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
+
     card.innerHTML = `
-        <div class="student-avatar">${initials}</div>
-        <div class="student-info">
-            <div class="student-name">${student.nom}</div>
-            <div class="student-detail">
-                <i class="fas fa-envelope"></i>
-                <a href="mailto:${student.email}" style="color: inherit; text-decoration: none;">${student.email}</a>
-            </div>
-            <div class="student-detail">
-                <i class="fas fa-book"></i>
-                ${student.classe}
-            </div>
-            ${student.age ? `
-            <div class="student-detail">
-                <i class="fas fa-birthday-cake"></i>
-                ${student.age} years old
-            </div>
-            ` : ''}
-            <span class="student-badge">ID: ${student.id}</span>
+        <div class="card-avatar">${initials}</div>
+        <div class="card-name">${student.nom}</div>
+        <div class="card-detail">
+            <i class="fas fa-envelope"></i>
+            <span>${student.email}</span>
         </div>
-        <div class="student-actions">
-            <button class="btn btn-edit btn-sm" onclick="openEditModal(${student.id})">
+        <div class="card-detail">
+            <i class="fas fa-book"></i>
+            <span>${student.classe}</span>
+        </div>
+        ${student.age ? `
+        <div class="card-detail">
+            <i class="fas fa-calendar"></i>
+            <span>${student.age} years old</span>
+        </div>` : ''}
+        <div class="card-badge"><i class="fas fa-id-badge"></i> ID: ${student.id}</div>
+        <div class="card-actions">
+            <button class="card-btn card-btn-edit" onclick="openEditModal(${student.id})">
                 <i class="fas fa-edit"></i> Edit
             </button>
-            <button class="btn btn-delete btn-sm" onclick="deleteStudent(${student.id})">
+            <button class="card-btn card-btn-delete" onclick="deleteStudent(${student.id})">
                 <i class="fas fa-trash"></i> Delete
             </button>
         </div>
@@ -93,7 +224,7 @@ function createStudentCard(student) {
     return card;
 }
 
-// =============== AJOUTER UN NOUVEL ÉTUDIANT ===============
+// ========== ADD STUDENT ==========
 async function handleAddStudent(e) {
     e.preventDefault();
 
@@ -107,28 +238,24 @@ async function handleAddStudent(e) {
     try {
         const response = await fetch('/api/students', {
             method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
+            headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(formData)
         });
 
         if (response.ok) {
-            // Show success notification
-            showNotification('Student added successfully!', 'success');
+            showToast('Student registered successfully!', 'success');
             studentForm.reset();
             loadStudents();
         } else {
             const error = await response.json();
-            showNotification('Error: ' + error.error, 'error');
+            showToast('Error: ' + error.error, 'error');
         }
     } catch (error) {
-        console.error('Error adding student:', error);
-        showNotification('Error adding student', 'error');
+        showToast('Error adding student', 'error');
     }
 }
 
-// =============== OUVRIR LE MODAL D'ÉDITION ===============
+// ========== OPEN EDIT MODAL ==========
 async function openEditModal(id) {
     try {
         const response = await fetch(`/api/students/${id}`);
@@ -142,17 +269,16 @@ async function openEditModal(id) {
 
         editModal.style.display = 'flex';
     } catch (error) {
-        console.error('Error loading student:', error);
-        showNotification('Error loading student', 'error');
+        showToast('Error loading student', 'error');
     }
 }
 
-// =============== FERMER LE MODAL ===============
+// ========== CLOSE MODAL ==========
 function closeModal() {
     editModal.style.display = 'none';
 }
 
-// =============== METTRE À JOUR UN ÉTUDIANT ===============
+// ========== UPDATE STUDENT ==========
 async function handleUpdateStudent(e) {
     e.preventDefault();
 
@@ -167,98 +293,55 @@ async function handleUpdateStudent(e) {
     try {
         const response = await fetch(`/api/students/${id}`, {
             method: 'PUT',
-            headers: {
-                'Content-Type': 'application/json'
-            },
+            headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(formData)
         });
 
         if (response.ok) {
-            showNotification('Student updated successfully!', 'success');
+            showToast('Student updated successfully!', 'success');
             closeModal();
             loadStudents();
         } else {
             const error = await response.json();
-            showNotification('Error: ' + error.error, 'error');
+            showToast('Error: ' + error.error, 'error');
         }
     } catch (error) {
-        console.error('Error updating student:', error);
-        showNotification('Error updating student', 'error');
+        showToast('Error updating student', 'error');
     }
 }
 
-// =============== SUPPRIMER UN ÉTUDIANT ===============
+// ========== DELETE STUDENT ==========
 async function deleteStudent(id) {
-    if (!confirm('Are you sure you want to delete this student?')) {
-        return;
-    }
+    if (!confirm('Are you sure you want to delete this student?')) return;
 
     try {
-        const response = await fetch(`/api/students/${id}`, {
-            method: 'DELETE'
-        });
+        const response = await fetch(`/api/students/${id}`, { method: 'DELETE' });
 
         if (response.ok) {
-            showNotification('Student deleted successfully!', 'success');
+            showToast('Student deleted successfully!', 'success');
             loadStudents();
         } else {
             const error = await response.json();
-            showNotification('Error: ' + error.error, 'error');
+            showToast('Error: ' + error.error, 'error');
         }
     } catch (error) {
-        console.error('Error deleting student:', error);
-        showNotification('Error deleting student', 'error');
+        showToast('Error deleting student', 'error');
     }
 }
 
-// =============== NOTIFICATION HELPER ===============
-function showNotification(message, type) {
-    // Create notification element
-    const notif = document.createElement('div');
-    notif.style.cssText = `
-        position: fixed;
-        top: 20px;
-        right: 20px;
-        padding: 16px 24px;
-        background: ${type === 'success' ? '#10b981' : '#ef4444'};
-        color: white;
-        border-radius: 8px;
-        box-shadow: 0 4px 12px rgba(0,0,0,0.15);
-        animation: slideInRight 0.3s ease-out;
-        z-index: 2000;
-        font-weight: 600;
+// ========== TOAST NOTIFICATIONS ==========
+function showToast(message, type) {
+    const container = document.getElementById('toastContainer');
+    const toast = document.createElement('div');
+    toast.className = `toast toast-${type}`;
+    toast.innerHTML = `
+        <i class="fas fa-${type === 'success' ? 'check-circle' : 'exclamation-circle'}"></i>
+        <span>${message}</span>
     `;
-    notif.textContent = message;
-    document.body.appendChild(notif);
+    container.appendChild(toast);
 
     setTimeout(() => {
-        notif.style.animation = 'slideOutRight 0.3s ease-out';
-        setTimeout(() => notif.remove(), 300);
-    }, 3000);
+        toast.style.animation = 'toastOut 0.4s ease forwards';
+        setTimeout(() => toast.remove(), 400);
+    }, 3500);
 }
-
-// Add animation styles
-const style = document.createElement('style');
-style.textContent = `
-    @keyframes slideInRight {
-        from {
-            transform: translateX(100%);
-            opacity: 0;
-        }
-        to {
-            transform: translateX(0);
-            opacity: 1;
-        }
-    }
-    @keyframes slideOutRight {
-        from {
-            transform: translateX(0);
-            opacity: 1;
-        }
-        to {
-            transform: translateX(100%);
-            opacity: 0;
-        }
-    }
-`;
-document.head.appendChild(style);

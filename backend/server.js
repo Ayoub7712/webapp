@@ -6,16 +6,69 @@ const db = require('./database');
 const app = express();
 const PORT = process.env.PORT || 3000;
 
+// =============== CREDENTIALS ===============
+const USERS = [
+    { username: 'admin', password: 'admin123', role: 'admin' },
+    { username: 'teacher', password: 'teacher123', role: 'teacher' }
+];
+
+const tokens = new Map(); // simple in-memory token store
+
 // Middleware
 app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+
+// Serve login page at root
+app.get('/', (req, res) => {
+    res.sendFile(path.join(__dirname, '../frontend/login.html'));
+});
+
+// Serve login.html explicitly
+app.get('/login.html', (req, res) => {
+    res.sendFile(path.join(__dirname, '../frontend/login.html'));
+});
+
+// Static files
 app.use(express.static(path.join(__dirname, '../frontend')));
 
 // Initialize database
 db.initializeDatabase();
 
-// =============== ROUTES API ===============
+// =============== AUTH ROUTES ===============
+
+// POST - Login
+app.post('/api/login', (req, res) => {
+    const { username, password } = req.body;
+    const user = USERS.find(u => u.username === username && u.password === password);
+    if (user) {
+        const token = Buffer.from(`${username}:${Date.now()}:${Math.random()}`).toString('base64');
+        tokens.set(token, { username: user.username, role: user.role, created: Date.now() });
+        res.json({ success: true, token, role: user.role });
+    } else {
+        res.status(401).json({ success: false, error: 'Invalid username or password' });
+    }
+});
+
+// POST - Logout
+app.post('/api/logout', (req, res) => {
+    const token = req.headers.authorization?.replace('Bearer ', '');
+    if (token) tokens.delete(token);
+    res.json({ success: true });
+});
+
+// GET - Verify token
+app.get('/api/verify', (req, res) => {
+    const token = req.headers.authorization?.replace('Bearer ', '');
+    if (token && tokens.has(token)) {
+        const session = tokens.get(token);
+        res.json({ success: true, username: session.username, role: session.role });
+    } else {
+        res.status(401).json({ success: false, error: 'Invalid or expired token' });
+    }
+});
+
+// =============== STUDENT ROUTES API ===============
 
 // GET - Récupérer tous les étudiants
 app.get('/api/students', (req, res) => {
@@ -78,14 +131,7 @@ app.delete('/api/students/:id', (req, res) => {
     });
 });
 
-// =============== ROUTES FRONTEND ===============
-
-// Route pour servir le fichier HTML principal
-app.get('/', (req, res) => {
-    res.sendFile(path.join(__dirname, '../frontend/index.html'));
-});
-
 // Démarrer le serveur
 app.listen(PORT, () => {
-    console.log(`✅ Serveur démarré sur http://localhost:${PORT}`);
+    console.log(`✅ Server started on http://localhost:${PORT}`);
 });
